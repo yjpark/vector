@@ -368,6 +368,7 @@ mod tests {
 
     #[test]
     fn http_happy_path_post() {
+        crate::test_util::trace_init();
         let num_lines = 1000;
 
         let in_addr = next_addr();

@@ -36,7 +36,8 @@ criterion_main!(
     buffering::buffers,
     http::http,
     batch::batch,
-    files::files,
+    // TODO: requires incompat-blocking feature
+    // files::files,
     lua::lua,
     event::event
 );

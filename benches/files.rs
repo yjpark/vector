@@ -1,3 +1,5 @@
+#![cfg(feature = "incompat-blocking")]
+
 use bytes::Bytes;
 use criterion::{criterion_group, Benchmark, Criterion, Throughput};
 use futures::{sink::Sink, stream::Stream, Future};
