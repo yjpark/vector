@@ -400,6 +400,7 @@ fn benchmark_regex(c: &mut Criterion) {
     );
 }
 
+#[allow(dead_code)]
 fn benchmark_complex(c: &mut Criterion) {
     let num_lines: usize = 100_000;
 

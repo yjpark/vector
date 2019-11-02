@@ -11,6 +11,7 @@ use vector::{
     topology::{self, config},
 };
 
+#[allow(dead_code)]
 fn benchmark_files_without_partitions(c: &mut Criterion) {
     let num_lines: usize = 100_000;
     let line_size: usize = 100;
