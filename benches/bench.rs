@@ -27,7 +27,7 @@ criterion_group!(
     benchmark_simple_pipe_with_many_writers,
     benchmark_interconnected,
     benchmark_transforms,
-    benchmark_complex,
+    // benchmark_complex,
     bench_elasticsearch_index,
     benchmark_regex,
 );
@@ -36,7 +36,7 @@ criterion_main!(
     buffering::buffers,
     http::http,
     batch::batch,
-    files::files,
+    // files::files,
     lua::lua,
     event::event
 );
