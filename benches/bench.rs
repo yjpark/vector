@@ -33,7 +33,7 @@ criterion_group!(
 );
 criterion_main!(
     benches,
-    buffering::buffers,
+    // buffering::buffers,
     http::http,
     batch::batch,
     // files::files,
