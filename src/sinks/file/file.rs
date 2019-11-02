@@ -157,6 +157,7 @@ impl AsRef<path::Path> for BytesPath {
 }
 
 #[cfg(test)]
+#[cfg(feature = "dislabed")]
 mod tests {
     use super::*;
     use crate::{

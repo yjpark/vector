@@ -189,14 +189,20 @@ impl Stream for Reader {
 
         // This will usually complete instantly, but in the case of a large queue (or a fresh launch of
         // the app), this will have to go to disk.
-        let next = tokio_threadpool::blocking(|| {
+        // let next = tokio_threadpool::blocking(|| {
+        //     self.db
+        //         .get(ReadOptions::new(), Key(self.read_offset))
+        //         .unwrap()
+        // })
+        // .unwrap();
+
+        let next = tokio02::executor::thread_pool::blocking(|| {
             self.db
                 .get(ReadOptions::new(), Key(self.read_offset))
                 .unwrap()
-        })
-        .unwrap();
+        });
 
-        if let Async::Ready(Some(value)) = next {
+        if let Some(value) = next {
             self.unacked_sizes.push_back(value.len());
             self.read_offset += 1;
 

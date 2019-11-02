@@ -1,15 +1,15 @@
 use futures::future::{ExecuteError, Executor, Future};
 use std::io;
-use tokio::runtime::Builder;
+use tokio_compat::runtime::Builder;
 
 pub struct Runtime {
-    rt: tokio::runtime::Runtime,
+    rt: tokio_compat::runtime::Runtime,
 }
 
 impl Runtime {
     pub fn new() -> io::Result<Self> {
         Ok(Runtime {
-            rt: tokio::runtime::Runtime::new()?,
+            rt: tokio_compat::runtime::Runtime::new()?,
         })
     }
 
@@ -47,17 +47,19 @@ impl Runtime {
     }
 
     pub fn shutdown_on_idle(self) -> impl Future<Item = (), Error = ()> {
-        self.rt.shutdown_on_idle()
+        self.rt.shutdown_on_idle();
+        futures::future::lazy(|| Ok(()))
     }
 
     pub fn shutdown_now(self) -> impl Future<Item = (), Error = ()> {
-        self.rt.shutdown_now()
+        self.rt.shutdown_now();
+        futures::future::lazy(|| Ok(()))
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct TaskExecutor {
-    inner: tokio::runtime::TaskExecutor,
+    inner: tokio_compat::runtime::TaskExecutor,
 }
 
 impl<F> Executor<F> for TaskExecutor
@@ -65,6 +67,7 @@ where
     F: Future<Item = (), Error = ()> + Send + 'static,
 {
     fn execute(&self, future: F) -> Result<(), ExecuteError<F>> {
-        self.inner.execute(future)
+        self.inner.spawn(future);
+        Ok(())
     }
 }
