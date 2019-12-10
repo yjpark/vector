@@ -45,11 +45,14 @@ tracing-limit = { path = "lib/tracing-limit" }
 
 # Tokio / Futures
 futures = "0.1.25"
+futures-util = { version = "0.3", default-features = false, features = ["compat"] }
 tokio = { version = "0.1.22", features = ["io", "uds", "tcp", "rt-full", "experimental-tracing"], default-features = false }
+tokio02 = { version = "0.2", package = "tokio", features = ["rt-threaded", "blocking"] }
 tokio-retry = "0.2.0"
 tokio-signal = "0.2.7"
 tokio-threadpool = "0.1.16"
 tokio-tls = "0.2.1"
+tokio-compat = { git = "https://github.com/tokio-rs/tokio-compat", branch = "eliza/update-to-02" }
 
 # Tracing
 tracing = "0.1.9"

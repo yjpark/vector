@@ -65,7 +65,8 @@ impl Resolver {
 
             (config, opts)
         } else {
-            system_conf::read_system_conf().context(ReadSystemConf)?
+            //system_conf::read_system_conf().context(ReadSystemConf)?
+            (Default::default(), Default::default())
         };
 
         let (inner, bg_task) = AsyncResolver::new(config, opt);

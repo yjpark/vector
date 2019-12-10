@@ -213,16 +213,12 @@ impl Sink for KafkaSink {
 fn healthcheck(config: KafkaSinkConfig) -> super::Healthcheck {
     let consumer: BaseConsumer = config.to_rdkafka().unwrap().create().unwrap();
 
-    let check = poll_fn(move || {
-        tokio_threadpool::blocking(|| {
-            consumer
-                .fetch_metadata(Some(&config.topic), Duration::from_secs(3))
-                .map(|_| ())
-                .map_err(|err| err.into())
-        })
+    let check = tokio02::task::block_in_place(|| {
+        consumer.fetch_metadata(Some(&config.topic), Duration::from_secs(3))
     })
+    .map(drop)
     .map_err(|err| err.into())
-    .and_then(|result| result.into_future());
+    .into_future();
 
     Box::new(check)
 }
