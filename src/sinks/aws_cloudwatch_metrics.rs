@@ -413,7 +413,7 @@ mod integration_tests {
     fn config() -> CloudWatchMetricsSinkConfig {
         CloudWatchMetricsSinkConfig {
             namespace: "vector".into(),
-            region: RegionOrEndpoint::with_endpoint("http://localhost:4582".to_owned()),
+            region: RegionOrEndpoint::with_endpoint("http://127.0.0.1:4582".to_owned()),
             ..Default::default()
         }
     }
