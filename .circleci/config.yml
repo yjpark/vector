@@ -1025,6 +1025,7 @@ workflows:
       - check-generate
       - test-stable
       - test-stable-kubernetes
+      - test-x86_64-pc-windows-msvc
 
       # Build & verify
 
