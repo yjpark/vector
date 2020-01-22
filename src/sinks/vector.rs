@@ -45,10 +45,7 @@ impl SinkConfig for VectorSinkConfig {
 
         let ip_addr = cx
             .resolver()
-            .lookup_ip(uri.host().ok_or(BuildError::MissingHost)?)
-            // This is fine to do here because this is just receiving on a channel
-            // and does not require access to the reactor/timer.
-            .wait()
+            .lookup_ip_sync(uri.host().ok_or(BuildError::MissingHost)?)
             .context(super::DNSError)?
             .next()
             .ok_or(Box::new(super::BuildError::DNSFailure {
@@ -107,4 +104,24 @@ fn encode_event(event: Event) -> Result<Bytes, ()> {
     out.put_u32_be(event_len);
     event.encode(&mut out).unwrap();
     Ok(out.freeze())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dns() {
+        let config = VectorSinkConfig {
+            address: "google.com".to_string(),
+        };
+
+        let mut rt = crate::test_util::runtime();
+        let cx = crate::topology::config::SinkContext::new_test(rt.executor());
+
+        rt.block_on(futures::future::lazy(move || {
+            config.build(cx).unwrap();
+            Ok::<_, ()>(())
+        }));
+    }
 }

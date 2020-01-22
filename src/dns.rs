@@ -88,6 +88,11 @@ impl Resolver {
                 .map(|lu| LookupIp::Query(lu.into_iter())),
         )
     }
+
+    pub fn lookup_ip_sync(&self, name: impl AsRef<str>) -> Result<LookupIp, DnsError> {
+        let mut rt = tokio::runtime::current_thread::Runtime::new().unwrap();
+        rt.block_on(self.lookup_ip(name))
+    }
 }
 
 impl Iterator for LookupIp {

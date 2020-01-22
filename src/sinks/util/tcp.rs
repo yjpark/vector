@@ -78,10 +78,7 @@ impl TcpSinkConfig {
 
         let ip_addr = cx
             .resolver()
-            .lookup_ip(uri.host().ok_or(TcpBuildError::MissingHost)?)
-            // This is fine to do here because this is just receiving on a channel
-            // and does not require access to the reactor/timer.
-            .wait()
+            .lookup_ip_sync(uri.host().ok_or(TcpBuildError::MissingHost)?)
             .context(DNSError)?
             .next()
             .ok_or(Box::new(BuildError::DNSFailure {
