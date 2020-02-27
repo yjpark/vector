@@ -5,15 +5,13 @@ use futures01::{future, Future, Stream};
 use std::{
     cmp::{max, min},
     fs::File,
-    net::SocketAddr,
     path::{Path, PathBuf},
 };
 use structopt::{clap::AppSettings, StructOpt};
 #[cfg(unix)]
 use tokio_signal::unix::{Signal, SIGHUP, SIGINT, SIGQUIT, SIGTERM};
 use topology::Config;
-use tracing_futures::Instrument;
-use vector::{config_paths, event, generate, list, metrics, runtime, topology, trace, unit_test};
+use vector::{config_paths, event, generate, list, runtime, topology, trace, unit_test};
 
 #[derive(StructOpt, Debug)]
 #[structopt(rename_all = "kebab-case")]
@@ -41,10 +39,6 @@ struct RootOpts {
     /// Exit on startup after config verification and optional healthchecks are run
     #[structopt(short, long)]
     dry_run: bool,
-
-    /// Serve internal metrics from the given address
-    #[structopt(short, long)]
-    metrics_addr: Option<SocketAddr>,
 
     /// Number of threads to use for processing (default is number of available cores)
     #[structopt(short, long)]
@@ -194,13 +188,7 @@ fn main() {
         Color::Never => false,
     };
 
-    let (metrics_controller, metrics_sink) = metrics::build();
-
-    trace::init(
-        color,
-        levels.as_str(),
-        opts.metrics_addr.map(|_| metrics_sink),
-    );
+    trace::init(color, levels.as_str());
 
     sub_command.map(|s| {
         std::process::exit(match s {
@@ -257,20 +245,6 @@ fn main() {
         let num_threads = min(4, threads);
         runtime::Runtime::with_thread_count(num_threads).expect("Unable to create async runtime")
     };
-
-    let (metrics_trigger, metrics_tripwire) = stream_cancel::Tripwire::new();
-
-    if let Some(metrics_addr) = opts.metrics_addr {
-        debug!("Starting metrics server");
-
-        rt.spawn(
-            metrics::serve(&metrics_addr, metrics_controller)
-                .instrument(info_span!("metrics", addr = ?metrics_addr))
-                .select(metrics_tripwire)
-                .map(|_| ())
-                .map_err(|_| ()),
-        );
-    }
 
     info!(
         message = "Vector is starting.",
@@ -357,7 +331,6 @@ fn main() {
 
             info!("Shutting down.");
             let shutdown = topology.stop();
-            metrics_trigger.cancel();
 
             match rt.block_on(shutdown.select2(signals.into_future())) {
                 Ok(Either::A(_)) => { /* Graceful shutdown finished */ }
