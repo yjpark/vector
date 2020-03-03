@@ -371,7 +371,7 @@ splunk-integration-tests = []
 influxdb-integration-tests = []
 
 kubernetes = ["kubernetes-integration-tests"]
-kubernetes-integration-tests = []
+kubernetes-integration-tests = ["uuid"]
 
 disable-resolv-conf = []
 
