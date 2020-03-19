@@ -207,7 +207,7 @@ impl RetryLogic for ClickhouseRetryLogic {
         let inner_result = self.inner.is_retriable_error(error);
         if !inner_result {
             let error_str = format!("{}", error);
-            if error_str == "error writing a body to connection: Broken pipe(os error 32)" {
+            if error_str.starts_with("error writing a body to connection: Broken pipe") {
                 warn!(message = "make error retriable:", %error);
                 return true;
             }
