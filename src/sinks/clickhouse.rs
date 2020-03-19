@@ -204,7 +204,15 @@ impl RetryLogic for ClickhouseRetryLogic {
     type Error = hyper::Error;
 
     fn is_retriable_error(&self, error: &Self::Error) -> bool {
-        self.inner.is_retriable_error(error)
+        let inner_result = self.inner.is_retriable_error(error);
+        if !inner_result {
+            let error_str = format!("{}", error);
+            if error_str == "error writing a body to connection: Broken pipe(os error 32)" {
+                warn!(message = "make error retriable:", %error);
+                return true;
+            }
+        }
+        inner_result
     }
 
     fn should_retry_response(&self, response: &Self::Response) -> RetryAction {
