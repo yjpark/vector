@@ -15,7 +15,7 @@ pub mod flatten;
 pub mod merge;
 pub mod merge_state;
 pub mod metric;
-mod unflatten;
+pub mod unflatten;
 
 pub use metric::Metric;
 pub use unflatten::Unflatten;

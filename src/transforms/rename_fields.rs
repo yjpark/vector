@@ -16,7 +16,7 @@ pub struct RenameFieldsConfig {
 }
 
 pub struct RenameFields {
-    fields: IndexMap<Atom, Atom>,
+    pub fields: IndexMap<Atom, Atom>,
 }
 
 inventory::submit! {

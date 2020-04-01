@@ -1,6 +1,6 @@
 use crate::{
     dns::Resolver,
-    event::{Event, Value},
+    event::{Event, Value, unflatten},
     sinks::util::{
         http::{https_client, Auth, HttpRetryLogic, HttpService, Response},
         retries::{RetryAction, RetryLogic},
@@ -8,6 +8,7 @@ use crate::{
     },
     tls::{TlsOptions, TlsSettings},
     topology::config::{DataType, SinkConfig, SinkContext, SinkDescription},
+    transforms::rename_fields,
 };
 use futures::{stream::iter_ok, Future, Sink};
 use http::StatusCode;
@@ -16,12 +17,16 @@ use hyper::{Body, Request};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
+use string_cache::DefaultAtom as Atom;
+use indexmap::map::IndexMap;
+use toml::value::Value as TomlValue;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum TimestampFormat {
     Unix,
     RFC3339,
+    UnixMs,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -44,6 +49,7 @@ pub struct ClickhouseConfig {
     #[serde(default)]
     pub request: TowerRequestConfig,
     pub tls: Option<TlsOptions>,
+    pub pack_fields: IndexMap<String, TomlValue>,
 }
 
 lazy_static! {
@@ -60,7 +66,8 @@ inventory::submit! {
 impl SinkConfig for ClickhouseConfig {
     fn build(&self, cx: SinkContext) -> crate::Result<(super::RouterSink, super::Healthcheck)> {
         let healtcheck = healthcheck(cx.resolver(), &self)?;
-        let sink = clickhouse(self.clone(), cx)?;
+        let pack_fields = rename_fields::RenameFields::new(self.pack_fields.clone())?;
+        let sink = clickhouse(self.clone(), cx, pack_fields)?;
 
         Ok((sink, healtcheck))
     }
@@ -74,7 +81,7 @@ impl SinkConfig for ClickhouseConfig {
     }
 }
 
-fn clickhouse(config: ClickhouseConfig, cx: SinkContext) -> crate::Result<super::RouterSink> {
+fn clickhouse(config: ClickhouseConfig, cx: SinkContext,  pack_fields: rename_fields::RenameFields) -> crate::Result<super::RouterSink> {
     let host = config.host.clone();
     let database = config.database.clone().unwrap_or("default".into());
     let table = config.table.clone();
@@ -123,12 +130,12 @@ fn clickhouse(config: ClickhouseConfig, cx: SinkContext) -> crate::Result<super:
             cx.acker(),
         )
         .batched_with_min(Buffer::new(gzip), &batch)
-        .with_flat_map(move |event: Event| iter_ok(encode_event(&config, event)));
+        .with_flat_map(move |event: Event| iter_ok(encode_event(&config, &pack_fields, event)));
 
     Ok(Box::new(sink))
 }
 
-fn encode_event(config: &ClickhouseConfig, mut event: Event) -> Option<Vec<u8>> {
+fn encode_event(config: &ClickhouseConfig, pack_fields: &rename_fields::RenameFields, mut event: Event) -> Option<Vec<u8>> {
     match config.encoding.timestamp_format {
         Some(TimestampFormat::Unix) => {
             let mut unix_timestamps = Vec::new();
@@ -142,11 +149,54 @@ fn encode_event(config: &ClickhouseConfig, mut event: Event) -> Option<Vec<u8>> 
             }
         }
         // RFC3339 is the default serialization of a timestamp.
-        Some(TimestampFormat::RFC3339) | None => {}
+        Some(TimestampFormat::RFC3339) | None => {},
+        Some(TimestampFormat::UnixMs) => {
+            let time = event.as_log().get(&Atom::from("time"));
+            debug!("original time: {:?}", time);
+            if let Some(Value::Integer(time_in_ms)) = time {
+                let time_in_ms = time_in_ms.clone();
+                event.as_mut_log().insert(&Atom::from("time"), Value::Integer(time_in_ms / 1000));
+                event.as_mut_log().insert(&Atom::from("ms"), Value::Integer(time_in_ms % 1000));
+
+                    let time = event.as_log().get(&Atom::from("time"));
+                    debug!("updated time: {:?}", time);
+            }
+        }
     }
     let mut body =
-        serde_json::to_vec(&event.as_log().all_fields()).expect("Events should be valid json!");
+        if &pack_fields.fields.len() > &(0 as usize) {
+            let log = event.into_log();
+            let old_map = &log.unflatten().map;
+            let mut map = unflatten::MapValue::Map(old_map.clone());
+            for (old_key, new_key) in &pack_fields.fields {
+                if let Some(v) = old_map.get(&old_key) {
+                    match serde_json::to_string(&v) {
+                        Ok(v) => {
+                            //warn!("after pack: {} = {:?}", new_key.clone(), v.clone());
+                            let old_key : Atom = Atom::from(old_key);
+                            let new_key : Atom = Atom::from(new_key);
+                            let is_same_key = old_key == new_key;
+                            let temp = unflatten::unflatten(new_key, unflatten::MapValue::Value(Value::from(v)));
+                            unflatten::merge(&mut map, &temp);
+                            if !is_same_key {
+                                match map {
+                                    unflatten::MapValue::Map(ref mut m) => {
+                                        m.remove(&old_key);
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            serde_json::to_vec(&map).expect("Events should be valid json!")
+        } else {
+            serde_json::to_vec(&event.as_log().all_fields()).expect("Events should be valid json!")
+        };
     body.push(b'\n');
+
     Some(body)
 }
 

@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum MapValue {
+pub enum MapValue {
     Value(Value),
     Map(BTreeMap<Atom, MapValue>),
     Array(Vec<MapValue>),
@@ -20,7 +20,7 @@ enum MapValue {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Unflatten {
-    map: BTreeMap<Atom, MapValue>,
+    pub map: BTreeMap<Atom, MapValue>,
 }
 
 impl Unflatten {
@@ -52,7 +52,7 @@ impl From<BTreeMap<Atom, Value>> for Unflatten {
 /// This produces one path down the tree for each key that has
 /// previously been flattened. The goal here is that the return value
 /// of this function will be merged into the overall tree.
-fn unflatten(k: Atom, v: MapValue) -> MapValue {
+pub fn unflatten(k: Atom, v: MapValue) -> MapValue {
     // Maps are delimited via `.`.
     let mut s = k.rsplit('.').peekable();
     let mut map = BTreeMap::new();
@@ -124,7 +124,7 @@ fn build_array(i: usize, value: MapValue) -> Vec<MapValue> {
 
 /// Merge `b` into `a` overwritting anything in `a` that conflicts.
 // code borrowed from https://github.com/serde-rs/json/issues/377#issuecomment-341490464
-fn merge(a: &mut MapValue, b: &MapValue) {
+pub fn merge(a: &mut MapValue, b: &MapValue) {
     match (a, b) {
         (&mut MapValue::Map(ref mut a), &MapValue::Map(ref b)) => {
             for (k, v) in b {

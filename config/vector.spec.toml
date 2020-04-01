@@ -3021,6 +3021,8 @@ end
     # * enum: "rfc3339" or "unix"
     timestamp_format = "rfc3339"
     timestamp_format = "unix"
+    timestamp_format = "unix_ms"
+
 
   #
   # Request
